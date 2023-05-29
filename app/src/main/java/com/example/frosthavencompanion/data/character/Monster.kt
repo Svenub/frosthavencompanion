@@ -3,7 +3,9 @@ package com.example.frosthavencompanion.data.character
 import androidx.compose.ui.graphics.Color
 
 data class Monster(
-    override var name: String,
-    override var nameAlias: MutableList<String> = mutableListOf(),
-    override var color: Color
-) : GameCharacter(name, nameAlias, color = color)
+    override val name: String,
+    override val nameAlias: List<String> = emptyList(),
+    override val color: Color,
+    override val firstInitiative: Int? = 0,
+    override val done: Boolean = true
+) : GameCharacter(name, nameAlias, firstInitiative, color = color)

@@ -4,8 +4,10 @@ import androidx.compose.ui.graphics.Color
 
 
 data class Hero(
-    override var name: String,
-    override var nameAlias: MutableList<String> = mutableListOf(),
-    var secondInitiative: Int? = 0,
-    override var color: Color
-) : GameCharacter(name, nameAlias, 0, false, color)
+    override val name: String,
+    override val nameAlias: List<String> = emptyList(),
+    val secondInitiative: Int? = 0,
+    override val color: Color,
+    override val firstInitiative: Int? = 0,
+    override val done : Boolean = true
+) : GameCharacter(name, nameAlias, firstInitiative, color = color)

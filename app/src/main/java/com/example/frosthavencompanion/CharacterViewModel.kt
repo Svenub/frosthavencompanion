@@ -6,80 +6,152 @@ import androidx.lifecycle.ViewModel
 import com.example.frosthavencompanion.data.character.GameCharacter
 import com.example.frosthavencompanion.data.character.Hero
 import com.example.frosthavencompanion.data.character.Monster
+import com.example.frosthavencompanion.data.speechRecognition.SpeechRecognitionHelper
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import javax.inject.Inject
 
-open class CharacterViewModel : ViewModel() {
+@HiltViewModel
+open class CharacterViewModel @Inject constructor(
+    private val speechRecognitionHelper: SpeechRecognitionHelper
+) : ViewModel() {
+
+
+    val resultsFlow: StateFlow<List<String>?> = speechRecognitionHelper.resultsFlow
+    val errorFlow: StateFlow<Int?> = speechRecognitionHelper.errorFlow
 
     private val _characterList = MutableStateFlow<List<GameCharacter>>(emptyList())
     val characterList: StateFlow<List<GameCharacter>> = _characterList
-    private val _internalCharacterList: MutableList<GameCharacter> = mutableListOf()
 
     val allTypes = listOf("Hero", "Monster")
 
-
     fun addGameCharacter(gameCharacter: GameCharacter) {
-        when (gameCharacter) {
-            is Hero -> addHero(gameCharacter.name, gameCharacter.nameAlias, gameCharacter.color)
-            is Monster -> addMonster(
-                gameCharacter.name,
-                gameCharacter.nameAlias,
-                gameCharacter.color
-            )
-        }
-
-
+        val updatedList = characterList.value.toMutableList()
+        updatedList.add(gameCharacter)
+        _characterList.value = updatedList
     }
 
     fun removeGameCharacter(gameCharacter: GameCharacter) {
-        _internalCharacterList.removeIf { it == gameCharacter }
-        _characterList.value = _internalCharacterList.toList()
-    }
-
-    private fun addHero(name: String, alias: MutableList<String> = mutableListOf(), color: Color) {
-        val newHero = Hero(name, alias, color = color)
-        _internalCharacterList.add(newHero)
-        _characterList.value = _internalCharacterList.toList()  // emit a copy of the updated list
-    }
-
-
-    private fun addMonster(name: String, alias: MutableList<String> = mutableListOf(), color: Color
-    ) {
-
-        _internalCharacterList.add(Monster(name, alias, color = color))
-        _characterList.value = _internalCharacterList.toList()
+        val updatedList = characterList.value.filterNot { it == gameCharacter }
+        _characterList.value = updatedList
     }
 
     fun changeFirstInitiative(name: String, initiative: Int) {
-        _internalCharacterList.find { it.name == name }?.firstInitiative = initiative
-        _characterList.value = _internalCharacterList.toList()
+        _characterList.value = characterList.value.map { character ->
+            if (character.name == name) {
+                when (character) {
+                    is Hero -> character.copy(firstInitiative = initiative, done = true)
+                    is Monster -> character.copy(firstInitiative = initiative, done = true)
+                }
+            } else {
+                character
+            }
+        }
+        sortCharacterList()
     }
 
     fun changeSecondInitiative(name: String, initiative: Int) {
-        val char = _internalCharacterList.find { it.name == name }
-        if (char is Hero) {
-            char.secondInitiative = initiative
+        _characterList.value = characterList.value.map { character ->
+            if (character.name == name && character is Hero) {
+                character.copy(secondInitiative = initiative, done = true)
+            } else {
+                character
+            }
         }
-        _characterList.value = _internalCharacterList.toList()
+        sortCharacterList()
     }
 
     fun changeName(searchName: String, newName: String) {
-        _internalCharacterList.find { it.name == searchName }?.name = newName
-        _characterList.value = _internalCharacterList.toList()
+        _characterList.value = characterList.value.map { character ->
+            if (character.name == searchName) {
+                when (character) {
+                    is Hero -> character.copy(name = newName)
+                    is Monster -> character.copy(name = newName)
+                }
+            } else {
+                character
+            }
+        }
     }
 
     fun addNameAlias(searchName: String, newAlias: String) {
-        Log.e("addNameAlias", "searchName: $searchName, newAlias: $newAlias")
-        _internalCharacterList.find { it.name == searchName }?.nameAlias?.add(newAlias)
-        _characterList.value = _internalCharacterList.toList()
+        _characterList.value = characterList.value.map { character ->
+            if (character.name == searchName) {
+                when (character) {
+                    is Hero -> character.copy(nameAlias = character.nameAlias + newAlias)
+                    is Monster -> character.copy(nameAlias = character.nameAlias + newAlias)
+                }
+            } else {
+                character
+            }
+        }
     }
 
     fun removeNameAlias(searchName: String, removeAlias: String) {
-        Log.e("removeNameAlias", "searchName: $searchName, removeAlias: $removeAlias")
+        _characterList.value = characterList.value.map { character ->
+            if (character.name == searchName) {
+                when (character) {
+                    is Hero -> character.copy(nameAlias = character.nameAlias.filterNot { it == removeAlias })
+                    is Monster -> character.copy(nameAlias = character.nameAlias.filterNot { it == removeAlias })
 
-        _internalCharacterList.find { it.name == searchName }?.nameAlias?.removeIf { it == removeAlias}
-        _characterList.value = _internalCharacterList.toList()
+                }
+            } else {
+                character
+            }
+        }
     }
 
+    fun changeColor(searchName: String, color: Color) {
+        _characterList.value = characterList.value.map { character ->
+            if (character.name == searchName) {
+                when (character) {
+                    is Hero -> character.copy(color = color)
+                    is Monster -> character.copy(color = color)
+                }
+            } else {
+                character
+            }
+        }
+    }
 
+    private fun sortCharacterList() {
+        _characterList.value = characterList.value.sortedWith(
+            compareBy(
+                { it.firstInitiative },
+                { if (it is Hero) 0 else 1 },
+                { if (it is Hero) it.secondInitiative else null }
+            )
+        )
+    }
+
+    fun setIsDone(gameCharacter: GameCharacter, done: Boolean) {
+        _characterList.value = characterList.value.map { character ->
+            if (character == gameCharacter) {
+                when (character) {
+                    is Hero -> character.copy(done = done)
+                    is Monster -> character.copy(done = done)
+                }
+            } else {
+                character
+            }
+        }
+    }
+
+    fun setAllNotDone() {
+        _characterList.value = characterList.value.map { character ->
+            when (character) {
+                is Hero -> character.copy(done = false)
+                is Monster -> character.copy(done = false)
+            }
+        }
+    }
+
+    private fun startSpeechRecognition() {
+        speechRecognitionHelper.startListening()
+    }
+
+    fun stopSpeechRecognition() {
+        speechRecognitionHelper.stopListening()
+    }
 }

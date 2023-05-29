@@ -11,6 +11,10 @@ import com.example.frosthavencompanion.ui.theme.Teal200
 class CharacterViewModelPreview : CharacterViewModel() {
 
     init {
+       doInit()
+    }
+
+    private fun doInit() {
         val hero1 = Hero("DeathWalker", color = Purple200)
         val hero2 = Hero("BoneShaper", color = Purple700)
         val monster1 = Monster("Scout", color = Teal200)
